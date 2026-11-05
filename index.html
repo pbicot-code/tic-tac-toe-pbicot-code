@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3-Piece Cartoon Wood Tic-Tac-Toe</title>
+
+  <!-- ===== PWA ADDITIONS (head) ===== -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#b45309">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Tic Tac Toe">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="icon" type="image/png" href="./icons/icon-192.png">
+  <!-- ===== END PWA ADDITIONS ===== -->
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Cartoon Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;900&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      font-family: 'Fredoka', cursive, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* Clean White Canvas with Subtle Dot Pattern */
+    body {
+      background-color: #ffffff;
+      background-image: radial-gradient(#cbd5e1 2px, transparent 2px);
+      background-size: 24px 24px;
+      min-height: 100vh;
+    }
+
+    /* Cartoon Borders & Shadows (Adventure Time / Cel-Shading Style) */
+    .cartoon-border {
+      border: 4px solid #0f172a;
+      box-shadow: 4px 4px 0px #0f172a;
+    }
+
+    .cartoon-border-lg {
+      border: 6px solid #0f172a;
+      box-shadow: 6px 8px 0px #0f172a;
+    }
+
+    .cartoon-btn {
+      border: 4px solid #0f172a;
+      box-shadow: 4px 4px 0px #0f172a;
+      transition: all 0.12s ease;
+    }
+    .cartoon-btn:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0px #0f172a;
+    }
+    .cartoon-btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0px #0f172a;
+    }
+
+    /* Wood Grain Texture for Board */
+    .wood-board {
+      background: #b45309;
+      background-image: 
+        repeating-linear-gradient(45deg, rgba(0,0,0,0.04) 0px, rgba(0,0,0,0.04) 15px, transparent 15px, transparent 30px),
+        linear-gradient(135deg, #d97706, #78350f);
+      position: relative;
+    }
+
+    .wood-grain-overlay {
+      background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.04) 0px, rgba(0,0,0,0.04) 2px, transparent 2px, transparent 8px);
+    }
+
+    /* Fixed 100px x 100px Board Cells */
+    .board-cell {
+      width: 100px;
+      height: 100px;
+      border: 4px solid #0f172a;
+      background-color: #fef3c7;
+      box-shadow: inset 0 -6px 0 rgba(180, 83, 9, 0.4), 3px 5px 0 #0f172a;
+      position: relative;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease, transform 0.1s ease;
+      box-sizing: border-box;
+      flex-shrink: 0;
+    }
+
+    .board-cell:hover {
+      background-color: #fffbeb;
+      transform: translateY(-4px);
+    }
+
+    .board-cell.winning-cell {
+      background-color: #fde047;
+      animation: winBounce 0.6s infinite alternate ease-in-out;
+    }
+
+    @keyframes winBounce {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-6px) scale(1.03); }
+    }
+
+    /* Active Turn Avatar Pulse Cue */
+    @keyframes pulseTurnSymbol {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0px transparent); }
+      50% { transform: scale(1.15) translateY(-4px); filter: drop-shadow(0 6px 12px rgba(15, 23, 42, 0.2)); }
+    }
+
+    .active-turn-pulse {
+      animation: pulseTurnSymbol 1.2s infinite ease-in-out;
+    }
+
+    /* Expiring Piece 40% Opacity Pulse Warning */
+    @keyframes fadeOldestPiece {
+      0%, 100% {
+        opacity: 0.95;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.35;
+        transform: scale(0.9);
+      }
+    }
+
+    .expiring-pulse {
+      animation: fadeOldestPiece 0.9s infinite ease-in-out !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-6 text-slate-900">
+
+  <!-- TOP HEADER SECTION -->
+  <header class="w-full max-w-xl flex flex-col items-center gap-3 z-20 mt-1 mb-3">
+    <!-- Top Bar: Reset Button (Left), Title (Center), Rules Button (Right) -->
+    <div class="w-full flex items-center justify-between relative">
+      <button id="reset-btn" class="cartoon-btn bg-emerald-400 text-slate-900 px-4 py-2 rounded-2xl font-black text-sm flex items-center gap-2 z-10" title="Reset Game">
+        <i class="fa-solid fa-rotate-right"></i>
+        <span>RESET</span>
+      </button>
+
+      <h1 class="absolute inset-x-0 text-center text-3xl sm:text-4xl font-black tracking-wider text-slate-900 uppercase pointer-events-none">
+        TIC TAC TOE
+      </h1>
+
+      <button id="rules-btn" class="cartoon-btn bg-amber-300 text-slate-900 px-4 py-2 rounded-2xl font-black text-sm flex items-center gap-2 z-10" title="Rules">
+        <i class="fa-solid fa-question"></i>
+        <span>RULES</span>
+      </button>
+    </div>
+
+    <!-- SCOREBOARD CONTAINER: (Symbol 1) (Score 1) - (Score 2) (Symbol 2) -->
+    <div class="w-full flex items-center justify-center gap-4 sm:gap-8 mt-1">
+      
+      <!-- Player X Avatar & Score -->
+      <div class="flex items-center gap-3">
+        <div id="p1-avatar-wrap" class="relative w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center shrink-0 transition-transform active-turn-pulse">
+          <svg class="w-full h-full text-red-500 drop-shadow-[3px_4px_0px_#0f172a]" viewBox="0 0 64 64" fill="currentColor">
+            <circle cx="32" cy="20" r="14" stroke="#0f172a" stroke-width="3" />
+            <path d="M 27 34 L 27 40 L 14 44 C 10 45 8 50 8 58 L 56 58 C 56 50 54 45 50 44 L 37 40 L 37 34 Z" stroke="#0f172a" stroke-width="3" />
+          </svg>
+          <span class="absolute top-1.5 font-black text-lg sm:text-xl text-white drop-shadow-[2px_2px_0px_#0f172a]">X</span>
+        </div>
+
+        <div class="flex flex-col items-start">
+          <span class="text-[10px] sm:text-xs font-black tracking-widest text-red-600 uppercase">PLAYER X</span>
+          <span id="score-x" class="text-3xl sm:text-4xl font-black text-slate-900 leading-none">0</span>
+        </div>
+      </div>
+
+      <!-- Score Divider (-) -->
+      <span class="text-2xl sm:text-3xl font-black text-slate-400">-</span>
+
+      <!-- Player O Score & Avatar -->
+      <div class="flex items-center gap-3">
+        <div class="flex flex-col items-end">
+          <span class="text-[10px] sm:text-xs font-black tracking-widest text-blue-600 uppercase">PLAYER O</span>
+          <span id="score-o" class="text-3xl sm:text-4xl font-black text-slate-900 leading-none">0</span>
+        </div>
+
+        <div id="p2-avatar-wrap" class="relative w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center shrink-0 transition-transform opacity-50">
+          <svg class="w-full h-full text-blue-500 drop-shadow-[3px_4px_0px_#0f172a]" viewBox="0 0 64 64" fill="currentColor">
+            <circle cx="32" cy="20" r="14" stroke="#0f172a" stroke-width="3" />
+            <path d="M 27 34 L 27 40 L 14 44 C 10 45 8 50 8 58 L 56 58 C 56 50 54 45 50 44 L 37 40 L 37 34 Z" stroke="#0f172a" stroke-width="3" />
+          </svg>
+          <span class="absolute top-1.5 font-black text-lg sm:text-xl text-white drop-shadow-[2px_2px_0px_#0f172a]">O</span>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- MAIN GAME BOARD CONTAINER -->
+  <main class="w-full flex flex-col justify-start items-center -mt-1">
+    
+    <!-- STATUS BAR & NEXT GAME SIDE-BY-SIDE CONTAINER (Bounded to Board Width: max-w-[340px]) -->
+    <div class="w-[340px] max-w-[340px] flex items-center gap-2 mb-3 z-10 min-h-[48px]">
+      <div id="status-bar" class="cartoon-border bg-white px-4 py-2.5 rounded-full font-black text-slate-900 text-sm tracking-wide text-center flex-1 truncate">
+        PLAYER X'S TURN
+      </div>
+      <button id="next-game-btn" class="cartoon-btn bg-yellow-400 text-slate-900 px-4 py-2.5 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shrink-0 hidden">
+        <i class="fa-solid fa-play"></i>
+        <span>NEXT GAME</span>
+      </button>
+    </div>
+
+    <!-- WOODEN BOARD FRAME -->
+    <div class="w-[340px] h-[340px] p-4 rounded-3xl wood-board cartoon-border-lg flex items-center justify-center shrink-0">
+      <div id="grid-board" class="grid grid-cols-3 grid-rows-3 gap-3 w-[308px] h-[308px]">
+        <!-- 9 Fixed 100px x 100px Tiles -->
+      </div>
+    </div>
+  </main>
+
+  <!-- RULES MODAL -->
+  <div id="modal-rules" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-amber-100 cartoon-border-lg w-full max-w-md rounded-3xl p-6 relative">
+      <button id="close-rules" class="absolute top-4 right-4 w-9 h-9 bg-red-400 text-white rounded-xl cartoon-btn font-black flex items-center justify-center">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-12 h-12 rounded-2xl bg-amber-400 cartoon-border flex items-center justify-center text-slate-900 text-2xl font-black">
+          <i class="fa-solid fa-book"></i>
+        </div>
+        <h3 class="text-2xl font-black text-slate-900">Game Rules</h3>
+      </div>
+
+      <div class="space-y-3 text-sm text-slate-800 font-bold leading-snug">
+        <div class="p-3 rounded-2xl bg-amber-200 border-2 border-slate-900 flex items-start gap-3">
+          <span class="text-red-500 font-black text-lg">1.</span>
+          <p><strong>3 Piece Limit:</strong> Each player gets a maximum of 3 pieces on the board.</p>
+        </div>
+        <div class="p-3 rounded-2xl bg-amber-200 border-2 border-slate-900 flex items-start gap-3">
+          <span class="text-blue-500 font-black text-lg">2.</span>
+          <p><strong>FIFO Ring Buffer:</strong> Placing your 4th piece removes your <span class="text-red-600 font-black">oldest piece</span>.</p>
+        </div>
+        <div class="p-3 rounded-2xl bg-amber-200 border-2 border-slate-900 flex items-start gap-3">
+          <span class="text-amber-700 font-black text-lg">3.</span>
+          <p><strong>Fading Warning:</strong> Your oldest piece will gently <span class="text-red-500 font-black">pulse and fade</span> when it's next to disappear.</p>
+        </div>
+      </div>
+
+      <button id="btn-got-it" class="w-full mt-6 py-3 rounded-2xl bg-emerald-400 cartoon-btn font-black text-slate-900 text-base">
+        Got It!
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // Audio Synthesizer for Sound Effects
+    class AudioSFX {
+      constructor() { this.ctx = null; }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+      }
+      playDrop(isX) {
+        this.init();
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = isX ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(isX ? 400 : 580, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(isX ? 220 : 320, this.ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.12);
+      }
+      playVanish() {
+        this.init();
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(260, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(110, this.ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.15);
+      }
+      playWin() {
+        this.init();
+        if (!this.ctx) return;
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          const st = this.ctx.currentTime + (idx * 0.08);
+          gain.gain.setValueAtTime(0.3, st);
+          gain.gain.exponentialRampToValueAtTime(0.001, st + 0.25);
+          osc.connect(gain); gain.connect(this.ctx.destination);
+          osc.start(st); osc.stop(st + 0.25);
+        });
+      }
+    }
+
+    const sfx = new AudioSFX();
+
+    const WINNING_COMBOS = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6]
+    ];
+
+    const state = {
+      board: Array(9).fill(null),
+      currentPlayer: 'X',
+      startingPlayerNextRound: 'X',
+      queueX: [],
+      queueO: [],
+      scores: { X: 0, O: 0 },
+      gameActive: true
+    };
+
+    const gridBoardEl = document.getElementById('grid-board');
+    const p1AvatarWrapEl = document.getElementById('p1-avatar-wrap');
+    const p2AvatarWrapEl = document.getElementById('p2-avatar-wrap');
+    const scoreXEl = document.getElementById('score-x');
+    const scoreOEl = document.getElementById('score-o');
+    const statusBarEl = document.getElementById('status-bar');
+    const nextGameBtn = document.getElementById('next-game-btn');
+    const modalRules = document.getElementById('modal-rules');
+
+    function buildBoard() {
+      gridBoardEl.innerHTML = '';
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'board-cell rounded-2xl wood-grain-overlay';
+        cell.dataset.index = i;
+        cell.addEventListener('click', () => handleCellClick(i));
+        gridBoardEl.appendChild(cell);
+      }
+    }
+
+    function handleCellClick(index) {
+      if (!state.gameActive || state.board[index] !== null) return;
+
+      const current = state.currentPlayer;
+      const currentQueue = current === 'X' ? state.queueX : state.queueO;
+
+      // Drop 4th piece logic: remove ONLY the oldest piece from board array & DOM cell node
+      if (currentQueue.length === 3) {
+        const oldestIndex = currentQueue.shift();
+        state.board[oldestIndex] = null;
+        const targetCell = gridBoardEl.children[oldestIndex];
+        targetCell.innerHTML = '';
+        sfx.playVanish();
+      }
+
+      // Add new piece to state
+      state.board[index] = current;
+      currentQueue.push(index);
+
+      // Targeted DOM update for the clicked cell (No full board redraw/flashing)
+      const clickedCell = gridBoardEl.children[index];
+      const pieceMarkup = current === 'X'
+        ? `<svg class="w-14 h-14 drop-shadow-[3px_4px_0px_#0f172a]" viewBox="0 0 50 50"><path d="M10,10 L40,40 M40,10 L10,40" stroke="#ef4444" stroke-width="10" stroke-linecap="round"/></svg>`
+        : `<svg class="w-14 h-14 drop-shadow-[3px_4px_0px_#0f172a]" viewBox="0 0 50 50"><circle cx="25" cy="25" r="16" fill="none" stroke="#3b82f6" stroke-width="10"/></svg>`;
+      
+      clickedCell.innerHTML = pieceMarkup;
+      sfx.playDrop(current === 'X');
+
+      // Check win condition
+      const winCombo = checkWin(current);
+      if (winCombo) {
+        handleVictory(current, winCombo);
+        return;
+      }
+
+      // Toggle Turn
+      state.currentPlayer = current === 'X' ? 'O' : 'X';
+      statusBarEl.textContent = `PLAYER ${state.currentPlayer}'S TURN`;
+      updateUI();
+    }
+
+    function checkWin(player) {
+      for (const combo of WINNING_COMBOS) {
+        if (combo.every(idx => state.board[idx] === player)) return combo;
+      }
+      return null;
+    }
+
+    function handleVictory(winner, winningCombo) {
+      state.gameActive = false;
+      state.scores[winner]++;
+      state.startingPlayerNextRound = winner; // Winner will start next round
+
+      scoreXEl.textContent = state.scores.X;
+      scoreOEl.textContent = state.scores.O;
+      sfx.playWin();
+
+      winningCombo.forEach(idx => {
+        gridBoardEl.children[idx].classList.add('winning-cell');
+      });
+
+      statusBarEl.textContent = `PLAYER ${winner} WINS!`;
+      nextGameBtn.classList.remove('hidden');
+      updateUI();
+    }
+
+    function updateUI() {
+      // Update turn pulse on avatars
+      if (state.currentPlayer === 'X') {
+        p1AvatarWrapEl.classList.add('active-turn-pulse');
+        p1AvatarWrapEl.classList.remove('opacity-50');
+        p2AvatarWrapEl.classList.remove('active-turn-pulse');
+        p2AvatarWrapEl.classList.add('opacity-50');
+      } else {
+        p2AvatarWrapEl.classList.add('active-turn-pulse');
+        p2AvatarWrapEl.classList.remove('opacity-50');
+        p1AvatarWrapEl.classList.remove('active-turn-pulse');
+        p1AvatarWrapEl.classList.add('opacity-50');
+      }
+
+      // Manage expiring pulse on oldest pieces without re-rendering board structure
+      for (let i = 0; i < 9; i++) {
+        const cell = gridBoardEl.children[i];
+        if (cell.firstElementChild) {
+          cell.firstElementChild.classList.remove('expiring-pulse');
+        }
+      }
+
+      const activeQueue = state.currentPlayer === 'X' ? state.queueX : state.queueO;
+      if (state.gameActive && activeQueue.length === 3) {
+        const oldestIdx = activeQueue[0];
+        const oldestCell = gridBoardEl.children[oldestIdx];
+        if (oldestCell && oldestCell.firstElementChild) {
+          oldestCell.firstElementChild.classList.add('expiring-pulse');
+        }
+      }
+    }
+
+    // Proceed to next round (Keeps scores, winner starts next)
+    function startNextGame() {
+      state.board = Array(9).fill(null);
+      state.queueX = [];
+      state.queueO = [];
+      state.currentPlayer = state.startingPlayerNextRound;
+      state.gameActive = true;
+      nextGameBtn.classList.add('hidden');
+      statusBarEl.textContent = `PLAYER ${state.currentPlayer}'S TURN`;
+      buildBoard();
+      updateUI();
+    }
+
+    // Full Hard Reset (Clears board AND resets scores to 0-0)
+    function hardReset() {
+      state.scores = { X: 0, O: 0 };
+      state.startingPlayerNextRound = 'X';
+      scoreXEl.textContent = '0';
+      scoreOEl.textContent = '0';
+      startNextGame();
+    }
+
+    // Event Listeners
+    document.getElementById('reset-btn').addEventListener('click', hardReset);
+    nextGameBtn.addEventListener('click', startNextGame);
+    document.getElementById('rules-btn').addEventListener('click', () => modalRules.classList.remove('hidden'));
+    document.getElementById('close-rules').addEventListener('click', () => modalRules.classList.add('hidden'));
+    document.getElementById('btn-got-it').addEventListener('click', () => modalRules.classList.add('hidden'));
+
+    window.onload = () => {
+      buildBoard();
+      updateUI();
+    };
+  </script>
+
+  <!-- ===== PWA ADDITIONS (service worker registration) ===== -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => {
+          console.warn('Service worker registration failed:', err);
+        });
+      });
+    }
+  </script>
+  <!-- ===== END PWA ADDITIONS ===== -->
+</body>
+</html>
